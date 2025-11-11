@@ -1,147 +1,185 @@
 <?php
+/**
+ * index.php — Panel principal de reservas
+ *
+ * Contenido:
+ * - Encabezado y navegación (Manual, Login/Logout, enlace Admin si corresponde).
+ * - Panel de métricas (totales y por fecha, gestión de conflictos).
+ * - Tabla de reservas con acciones (Editar/Eliminar) solo para admin.
+ * - Formularios para crear nuevas reservas.
+ *
+ * Notas de flujo:
+ * - Lee métricas vía funciones en `funciones.php`.
+ * - Usa `isAdmin()` para mostrar/ocultar acciones sensibles.
+ * - Muestra mensajes de sesión (`flash`) si existen.
+ */
 session_start();
 require_once __DIR__ . '/funciones.php';
 
-// Obtener datos de la base de datos (reservas y métricas)
-try {
-    $reservas = listarReservas();
-    $totalReservas = contarReservas();
-    $hoy = date("Y-m-d");
-    $reservasHoy = contarReservasPorFecha($hoy);
-    $conflictos = detectarConflictos();
-} catch (Exception $e) {
-    // Si hay error de BD, mostramos mensaje y evitamos romper la vista
-    $reservas = [];
-    $totalReservas = 0;
-    $reservasHoy = 0;
-    $conflictos = [];
-    $error_db = "Error al cargar reservas: " . htmlspecialchars($e->getMessage());
-}
+$hoy = date('Y-m-d');
+$totalReservas = contarReservas();
+$reservasHoy = contarReservasPorFecha($hoy);
+$conflictos = detectarConflictos();
+$lista = listarReservas();
+$mensajeFlash = $_SESSION['flash'] ?? null;
+unset($_SESSION['flash']);
 ?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Sistema de Reservas</title>
-    <link rel="stylesheet" href="estilo.css"><!-- estilos visuales del sistema -->
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <!-- Font Awesome para iconos -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reservas — Panel</title>
+    <link rel="stylesheet" href="estilo.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 <body>
 <header>
-    <h1>Sistema de Reservas</h1>
-    <div style="text-align:right;">
+    <h1><i class="fa-solid fa-calendar-check"></i> Reservas</h1>
+    <nav>
+        <a href="manual.php" class="btn secundario"><i class="fa-solid fa-book"></i> Manual</a>
         <?php if (isAdmin()): ?>
-            Administrador | <a href="logout.php" style="color:white;">Cerrar sesión</a>
+            <a href="logout.php" class="btn peligro"><i class="fa-solid fa-right-from-bracket"></i> Salir</a>
         <?php else: ?>
-            <a href="login.php" style="color:white;">Iniciar sesión (Admin)</a>
+            <a href="login.php" class="btn primario"><i class="fa-solid fa-right-to-bracket"></i> Ingresar</a>
         <?php endif; ?>
-    </div>
+    </nav>
 </header>
 
-<a href="manual.php" class="manual-btn">📘 Manual del Usuario</a>
+<main>
+    <?php if ($mensajeFlash): ?>
+        <div class="alerta info"><i class="fa-solid fa-circle-info"></i> <?= htmlspecialchars($mensajeFlash) ?></div>
+    <?php endif; ?>
 
-<?php if (isset($error_db)): ?>
-    <div class="msg-error"><?= htmlspecialchars($error_db) ?></div>
-<?php endif; ?>
-
-<?php if (isset($_SESSION['error'])): ?>
-    <div class="msg-error"><?= htmlspecialchars($_SESSION['error']) ?></div>
-    <?php unset($_SESSION['error']); ?>
-<?php endif; ?>
-
-<?php if (isset($_SESSION['ok'])): ?>
-    <div class="msg-ok"><?= htmlspecialchars($_SESSION['ok']) ?></div>
-    <?php unset($_SESSION['ok']); ?>
-<?php endif; ?>
-
-<!-- Panel de estado: métricas rápidas del sistema -->
-<div class="panel-estado">
-    <strong>Panel de estado:</strong><br>
-    📌 Total de reservas: <?= $totalReservas ?><br>
-    📅 Reservas para hoy (<?= $hoy ?>): <?= $reservasHoy ?><br>
-    ⚠️ Conflictos detectados: <?= count($conflictos) ?>
-</div>
-
-<!-- Formulario: creación de nueva reserva -->
-<h3>Nueva reserva</h3>
-<form method="post" action="admin.php" class="form-grid">
-    <input type="hidden" name="accion" value="insertar">
-
-    <div class="campo">
-        <label>Nombre:</label>
-        <input type="text" name="nombre" required>
-    </div>
-    <div class="campo">
-        <label>Apellido:</label>
-        <input type="text" name="apellido" required>
-    </div>
-    <div class="campo">
-        <label>DNI:</label>
-        <input type="text" name="dni" required>
-    </div>
-    <div class="campo">
-        <label>Cargo:</label>
-        <select name="cargo" required>
-            <option>Estudiante</option>
-            <option>Docente</option>
-            <option>Preceptor</option>
-            <option>Administrador</option>
-            <option>Directivos</option>
-        </select>
-    </div>
-    <div class="campo">
-        <label>Fecha:</label>
-        <input type="date" name="fecha" required>
-    </div>
-    <div class="campo">
-        <label>Horario:</label>
-        <input type="time" name="horario" required>
-    </div>
-    <div class="campo">
-        <label>Duración (minutos):</label>
-        <input type="number" name="duracion" min="10" max="480" step="5" required>
-    </div>
-    <div class="campo">
-        <label>Espacio:</label>
-        <select name="espacio" required>
-            <option>Sala de reuniones</option>
-            <option>Auditorio</option>
-            <option>Laboratorio de informática</option>
-        </select>
-    </div>
-    <div style="flex:1 1 100%; text-align:center;">
-        <button type="submit">Reservar</button>
-    </div>
-</form>
-
-<hr>
-
-<!-- Listado: reservas existentes (si admin, muestra acciones) -->
-<h3>Reservas realizadas</h3>
-<ul>
-    <?php foreach ($reservas as $r): ?>
-        <li>
-            <?= htmlspecialchars($r['nombre'].' '.$r['apellido']) ?>
-            — <?= htmlspecialchars($r['espacio']) ?>
-            (<?= htmlspecialchars($r['fecha'].' '.$r['horario']) ?>)
-
-            <?php if (isAdmin()): ?>
-                <div class="reserva-acciones">
-                    <form method="post" action="admin.php" style="display:inline;">
-                        <input type="hidden" name="accion" value="eliminar">
-                        <input type="hidden" name="id" value="<?= (int)$r['id'] ?>">
-                        <button type="submit" class="icon-btn" onclick="return confirm('¿Está seguro de eliminar esta reserva?')"><i class="fas fa-trash"></i></button>
-                    </form>
-                    <form method="get" action="editar.php" style="display:inline;">
-                        <input type="hidden" name="id" value="<?= (int)$r['id'] ?>">
-                        <button type="submit" class="icon-btn"><i class="fas fa-edit"></i></button>
-                    </form>
-                </div>
+    <section class="panel">
+        <div class="panel-item">
+            <h3><i class="fa-solid fa-list"></i> Total de reservas</h3>
+            <p><?= $totalReservas ?></p>
+        </div>
+        <div class="panel-item">
+            <h3><i class="fa-solid fa-sun"></i> Hoy (<?= $hoy ?>)</h3>
+            <p><?= $reservasHoy ?></p>
+        </div>
+        <div class="panel-item">
+            <h3><i class="fa-solid fa-triangle-exclamation"></i> Conflictos</h3>
+            <?php if (count($conflictos) === 0): ?>
+                <p>Sin conflictos</p>
+            <?php else: ?>
+                <ul>
+                    <?php foreach ($conflictos as $c): ?>
+                        <li><?= htmlspecialchars($c['fecha']) ?> <?= htmlspecialchars($c['horario']) ?> — <?= htmlspecialchars($c['espacio']) ?> (<?= (int)$c['cantidad'] ?>)</li>
+                    <?php endforeach; ?>
+                </ul>
             <?php endif; ?>
-        </li>
-    <?php endforeach; ?>
-</ul>
+        </div>
+    </section>
+
+    <?php if (isAdmin()): ?>
+        <section class="acciones">
+            <a href="editar.php" class="btn primario"><i class="fa-solid fa-user-gear"></i> Panel Admin</a>
+        </section>
+    <?php endif; ?>
+
+    <section class="tabla">
+        <h2><i class="fa-solid fa-table"></i> Reservas registradas</h2>
+        <table>
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>Nombre</th>
+                <th>Apellido</th>
+                <th>DNI</th>
+                <th>Cargo</th>
+                <th>Fecha</th>
+                <th>Horario</th>
+                <th>Espacio</th>
+                <th>Duración</th>
+                <?php if (isAdmin()): ?><th>Acciones</th><?php endif; ?>
+            </tr>
+            </thead>
+            <tbody>
+            <?php foreach ($lista as $r): ?>
+                <tr>
+                    <td><?= (int)$r['id'] ?></td>
+                    <td><?= htmlspecialchars($r['nombre']) ?></td>
+                    <td><?= htmlspecialchars($r['apellido']) ?></td>
+                    <td><?= htmlspecialchars($r['dni']) ?></td>
+                    <td><?= htmlspecialchars($r['cargo']) ?></td>
+                    <td><?= htmlspecialchars($r['fecha']) ?></td>
+                    <td><?= htmlspecialchars($r['horario']) ?></td>
+                    <td><?= htmlspecialchars($r['espacio']) ?></td>
+                    <td><?= (int)$r['duracion'] ?> min</td>
+                    <?php if (isAdmin()): ?>
+                        <td class="acciones">
+                            <form method="GET" action="editar.php" class="inline">
+                                <input type="hidden" name="id" value="<?= (int)$r['id'] ?>" />
+                                <button type="submit" class="btn secundario"><i class="fa-solid fa-pen-to-square"></i> Editar</button>
+                            </form>
+                            <form method="POST" action="admin.php" class="inline" onsubmit="return confirm('¿Eliminar la reserva?');">
+                                <input type="hidden" name="accion" value="eliminar" />
+                                <input type="hidden" name="id" value="<?= (int)$r['id'] ?>" />
+                                <button type="submit" class="btn peligro"><i class="fa-solid fa-trash"></i> Eliminar</button>
+                            </form>
+                        </td>
+                    <?php endif; ?>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+    </section>
+
+    <?php if (isAdmin()): ?>
+        <section class="formulario">
+            <h2><i class="fa-solid fa-plus"></i> Nueva reserva</h2>
+            <form method="POST" action="admin.php">
+                <input type="hidden" name="accion" value="insertar">
+
+                <div class="grid">
+                    <label>Nombre
+                        <input type="text" name="nombre" required>
+                    </label>
+                    <label>Apellido
+                        <input type="text" name="apellido" required>
+                    </label>
+                    <label>DNI
+                        <input type="text" name="dni" placeholder="Sólo números" required>
+                    </label>
+                    <label>Cargo
+                        <select name="cargo" required>
+                            <option value="Alumno">Alumno</option>
+                            <option value="Profesor">Profesor</option>
+                            <option value="Directivo">Directivo</option>
+                            <option value="Personal">Personal</option>
+                        </select>
+                    </label>
+                    <label>Fecha
+                        <input type="date" name="fecha" value="<?= $hoy ?>" required>
+                    </label>
+                    <label>Horario
+                        <input type="time" name="horario" required>
+                    </label>
+                    <label>Espacio
+                        <select name="espacio" required>
+                            <option value="Aula 1">Aula 1</option>
+                            <option value="Aula 2">Aula 2</option>
+                            <option value="Laboratorio">Laboratorio</option>
+                            <option value="Gimnasio">Gimnasio</option>
+                            <option value="Biblioteca">Biblioteca</option>
+                        </select>
+                    </label>
+                    <label>Duración (minutos)
+                        <input type="number" name="duracion" min="10" max="480" step="5" value="30" required>
+                    </label>
+                </div>
+
+                <button type="submit" class="btn primario"><i class="fa-solid fa-check"></i> Crear</button>
+            </form>
+        </section>
+    <?php endif; ?>
+</main>
+
+<footer>
+    <small>Reservas v1 — Escuela</small>
+</footer>
 </body>
 </html>

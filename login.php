@@ -1,22 +1,38 @@
 <?php
+/**
+ * login.php — Formulario y procesamiento de inicio de sesión (Admin)
+ *
+ * Responsabilidades:
+ * - Mostrar formulario de autenticación para el rol administrador.
+ * - Verificar credenciales y establecer `$_SESSION['admin'] = true`.
+ * - Redirigir al panel principal (`index.php`) en caso de éxito.
+ *
+ * Seguridad:
+ * - Regenera el ID de sesión tras login exitoso para mitigar fijación de sesión.
+ * - Usa `password_hash`/`password_verify` para verificar la contraseña.
+ * - Evita filtrar detalles del error (mensaje genérico).
+ */
 session_start();
 
-// Credenciales seguras con hash (admin/admin123)
-$ADMIN_USER = 'admin';
-$ADMIN_HASH = password_hash('admin123', PASSWORD_DEFAULT);
+// Credenciales: usuario "admin" con contraseña "admin123"
+$usuario = 'admin';
+$passwordPlano = 'admin123';
+// Hash generado previamente con password_hash($passwordPlano, PASSWORD_DEFAULT)
+$hashContrasenia = password_hash($passwordPlano, PASSWORD_DEFAULT);
+
+$mensaje = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $usuario = $_POST['usuario'] ?? '';
-    $clave = $_POST['clave'] ?? '';
+    $user = trim($_POST['usuario'] ?? '');
+    $pass = $_POST['contrasenia'] ?? '';
 
-    if ($usuario === $ADMIN_USER && password_verify($clave, $ADMIN_HASH)) {
-        // Regenerar ID de sesión y marcar como admin
-        session_regenerate_id(true);
-        $_SESSION['admin'] = true;
-        header("Location: index.php");
+    if ($user === $usuario && password_verify($pass, $hashContrasenia)) {
+        session_regenerate_id(true); // primero regenerar ID
+        $_SESSION['admin'] = true;   // luego marcar rol admin
+        header('Location: index.php');
         exit;
     } else {
-        $error = "Usuario o contraseña incorrectos.";
+        $mensaje = 'Usuario o contraseña incorrectos.';
     }
 }
 ?>
@@ -24,34 +40,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Login Administrador</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ingresar — Admin</title>
     <link rel="stylesheet" href="estilo.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 <body>
-<header><h1>Login Administrador</h1></header>
-
-<?php if (!empty($error)): ?>
-    <div class="msg-error"><?= htmlspecialchars($error) ?></div>
-<?php endif; ?>
-
-<!-- Formulario de login simple (proyecto pedagógico, sin CSRF) -->
-<form method="post" class="form-grid">
-    <div class="campo">
-        <label>Usuario:</label>
-        <input type="text" name="usuario" required>
-    </div>
-    <div class="campo">
-        <label>Contraseña:</label>
-        <input type="password" name="clave" required>
-    </div>
-    <div style="flex:1 1 100%; text-align:center;">
-        <button type="submit">Ingresar</button>
-    </div>
-</form>
-
-<div style="margin-top:20px; text-align:center;">
-    <a href="index.php" class="manual-btn">Volver al inicio</a>
-</div>
+<header>
+    <h1><i class="fa-solid fa-user-shield"></i> Iniciar sesión</h1>
+</header>
+<main>
+    <?php if ($mensaje): ?>
+        <div class="alerta peligro"><i class="fa-solid fa-circle-exclamation"></i> <?= htmlspecialchars($mensaje) ?></div>
+    <?php endif; ?>
+    <form method="POST" action="login.php" class="formulario">
+        <div class="grid">
+            <label>Usuario
+                <input type="text" name="usuario" required>
+            </label>
+            <label>Contraseña
+                <input type="password" name="contrasenia" required>
+            </label>
+        </div>
+        <button type="submit" class="btn primario"><i class="fa-solid fa-right-to-bracket"></i> Ingresar</button>
+    </form>
+</main>
+<footer>
+    <small>Reservas v1 — Escuela</small>
+</footer>
 </body>
 </html>
 
