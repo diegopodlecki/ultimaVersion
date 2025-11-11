@@ -11,7 +11,7 @@ session_start();
     <meta charset="UTF-8">
     <title>Manual del Usuario</title>
     <!-- Hoja de estilos principal -->
-    <link rel="stylesheet" href="estilo.css">
+    <link rel="stylesheet" href="estilo.css?v=<?= filemtime(__DIR__ . '/estilo.css') ?>">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 </head>
 <body>

@@ -15,7 +15,16 @@ if (!isAdmin()) {
 }
 
 $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
-$reserva = $id ? obtenerReservaPorId($id) : null;
+
+// Volver a usar getDB() y consulta directa con PDO
+$db = getDB();
+$reserva = null;
+if ($id) {
+    $stmt = $db->prepare("SELECT * FROM reservas WHERE id = ?");
+    $stmt->execute([$id]);
+    $reserva = $stmt->fetch(PDO::FETCH_ASSOC);
+}
+
 if (!$reserva) {
     $_SESSION['flash'] = 'Reserva no encontrada.';
     redirect('index.php');
@@ -29,7 +38,7 @@ $hoy = date('Y-m-d');
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Editar reserva #<?= (int)$reserva['id'] ?></title>
-    <link rel="stylesheet" href="estilo.css">
+    <link rel="stylesheet" href="estilo.css?v=<?= filemtime(__DIR__ . '/estilo.css') ?>">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 <body>

@@ -1,37 +1,27 @@
 <?php
 /**
- * admin.php — Controlador de acciones administrativas
- *
- * Responsabilidades:
- * - Verificar acceso (solo admin) y delegar acciones CRUD a funciones de dominio.
- * - Gestionar mensajes de éxito/error y redirecciones.
- * - Centralizar el flujo mediante `switch` sobre `$_POST['accion']`.
- *
- * Seguridad y buenas prácticas:
- * - Usa `isAdmin()` para validar sesión; no expone detalles sensibles.
- * - Aplica try/catch para capturar validaciones (DNI/duración) y errores de BD.
- * - Sanitiza entradas en `funciones.php` para evitar XSS.
+ * admin.php — Controlador de acciones (inserción pública, edición/eliminación sólo admin)
  */
 session_start();
 require_once __DIR__ . '/funciones.php';
 
-// Acceso restringido al rol admin
-if (!isAdmin()) {
-    redirect('login.php');
+$accion = $_POST['accion'] ?? $_GET['accion'] ?? null;
+
+function redir($msg) {
+    $_SESSION['flash'] = $msg;
+    header('Location: index.php');
+    exit;
 }
 
-// Helper de redirección con mensaje
-function redirConMensaje(string $url, string $mensaje): void {
-    $_SESSION['flash'] = $mensaje;
-    redirect($url);
+if (!$accion) {
+    redir('Acción no especificada');
 }
 
-$accion = $_POST['accion'] ?? null;
-
+// Permitir insertar sin login, restringir editar/eliminar a admin
 switch ($accion) {
-    case 'insertar':
-        // Orden esperado: nombre, apellido, dni, cargo, fecha, horario, espacio, duracion
-        $datos = [
+    case 'insertar': {
+        // Orden requerido: [nombre, apellido, dni, cargo, fecha, horario, espacio, duracion]
+        $data = [
             $_POST['nombre'] ?? '',
             $_POST['apellido'] ?? '',
             $_POST['dni'] ?? '',
@@ -42,17 +32,21 @@ switch ($accion) {
             $_POST['duracion'] ?? 0,
         ];
         try {
-            if (!insertarReserva($datos)) {
-                return redirConMensaje('index.php', 'Conflicto: ya existe una reserva para ese espacio/fecha/hora.');
+            $ok = insertarReserva($data);
+            if (!$ok) {
+                redir('Ya existe una reserva con mismo espacio/fecha/horario.');
             }
-            return redirConMensaje('index.php', 'Reserva creada correctamente.');
+            redir('Reserva creada correctamente.');
         } catch (Throwable $e) {
-            return redirConMensaje('index.php', 'Error al crear: ' . $e->getMessage());
+            redir('Error al crear: ' . $e->getMessage());
         }
-
-    case 'actualizar':
-        // Orden esperado + id al final
-        $datos = [
+        break;
+    }
+    case 'actualizar': {
+        if (!isAdmin()) { redir('Acción restringida a administrador'); }
+        $id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
+        // Orden requerido + id al final (9 elementos)
+        $data = [
             $_POST['nombre'] ?? '',
             $_POST['apellido'] ?? '',
             $_POST['dni'] ?? '',
@@ -61,27 +55,30 @@ switch ($accion) {
             $_POST['horario'] ?? '',
             $_POST['espacio'] ?? '',
             $_POST['duracion'] ?? 0,
-            isset($_POST['id']) ? (int)$_POST['id'] : 0,
+            $id,
         ];
         try {
-            if (!actualizarReserva($datos)) {
-                return redirConMensaje('index.php', 'Conflicto: otra reserva ya ocupa ese espacio/fecha/hora.');
+            $ok = actualizarReserva($data);
+            if (!$ok) {
+                redir('Conflicto: otra reserva ya ocupa ese espacio/fecha/hora.');
             }
-            return redirConMensaje('index.php', 'Reserva actualizada correctamente.');
+            redir('Reserva actualizada correctamente.');
         } catch (Throwable $e) {
-            return redirConMensaje('index.php', 'Error al actualizar: ' . $e->getMessage());
+            redir('Error al actualizar: ' . $e->getMessage());
         }
-
-    case 'eliminar':
+        break;
+    }
+    case 'eliminar': {
+        if (!isAdmin()) { redir('Acción restringida a administrador'); }
         $id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
         try {
-            eliminarReserva($id);
-            return redirConMensaje('index.php', 'Reserva eliminada.');
+            $ok = eliminarReserva($id);
+            redir($ok ? 'Reserva eliminada.' : 'No se pudo eliminar.');
         } catch (Throwable $e) {
-            return redirConMensaje('index.php', 'Error al eliminar: ' . $e->getMessage());
+            redir('Error al eliminar: ' . $e->getMessage());
         }
-
+        break;
+    }
     default:
-        // Acción desconocida: regresar al panel
-        redirect('index.php');
+        redir('Acción inválida');
 }

@@ -1,20 +1,12 @@
 <?php
 /**
- * index.php — Panel principal de reservas
- *
- * Contenido:
- * - Encabezado y navegación (Manual, Login/Logout, enlace Admin si corresponde).
- * - Panel de métricas (totales y por fecha, gestión de conflictos).
- * - Tabla de reservas con acciones (Editar/Eliminar) solo para admin.
- * - Formularios para crear nuevas reservas.
- *
- * Notas de flujo:
- * - Lee métricas vía funciones en `funciones.php`.
- * - Usa `isAdmin()` para mostrar/ocultar acciones sensibles.
- * - Muestra mensajes de sesión (`flash`) si existen.
+ * index.php — Panel principal con reservas públicas
  */
 session_start();
 require_once __DIR__ . '/funciones.php';
+
+// Reintroducir getDB() para compatibilidad
+$db = getDB();
 
 $hoy = date('Y-m-d');
 $totalReservas = contarReservas();
@@ -30,7 +22,7 @@ unset($_SESSION['flash']);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reservas — Panel</title>
-    <link rel="stylesheet" href="estilo.css">
+    <link rel="stylesheet" href="estilo.css?v=<?= filemtime(__DIR__ . '/estilo.css') ?>">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 <body>
@@ -41,7 +33,7 @@ unset($_SESSION['flash']);
         <?php if (isAdmin()): ?>
             <a href="logout.php" class="btn peligro"><i class="fa-solid fa-right-from-bracket"></i> Salir</a>
         <?php else: ?>
-            <a href="login.php" class="btn primario"><i class="fa-solid fa-right-to-bracket"></i> Ingresar</a>
+            <a href="login.php" class="btn primario"><i class="fa-solid fa-right-to-bracket"></i> Ingresar (Admin)</a>
         <?php endif; ?>
     </nav>
 </header>
@@ -76,7 +68,7 @@ unset($_SESSION['flash']);
 
     <?php if (isAdmin()): ?>
         <section class="acciones">
-            <a href="editar.php" class="btn primario"><i class="fa-solid fa-user-gear"></i> Panel Admin</a>
+            <a href="editar.php" class="btn secundario"><i class="fa-solid fa-user-gear"></i> Panel Admin</a>
         </section>
     <?php endif; ?>
 
@@ -128,54 +120,52 @@ unset($_SESSION['flash']);
         </table>
     </section>
 
-    <?php if (isAdmin()): ?>
-        <section class="formulario">
-            <h2><i class="fa-solid fa-plus"></i> Nueva reserva</h2>
-            <form method="POST" action="admin.php">
-                <input type="hidden" name="accion" value="insertar">
+    <section class="formulario">
+        <h2><i class="fa-solid fa-plus"></i> Nueva reserva</h2>
+        <form method="POST" action="admin.php">
+            <input type="hidden" name="accion" value="insertar">
 
-                <div class="grid">
-                    <label>Nombre
-                        <input type="text" name="nombre" required>
-                    </label>
-                    <label>Apellido
-                        <input type="text" name="apellido" required>
-                    </label>
-                    <label>DNI
-                        <input type="text" name="dni" placeholder="Sólo números" required>
-                    </label>
-                    <label>Cargo
-                        <select name="cargo" required>
-                            <option value="Alumno">Alumno</option>
-                            <option value="Profesor">Profesor</option>
-                            <option value="Directivo">Directivo</option>
-                            <option value="Personal">Personal</option>
-                        </select>
-                    </label>
-                    <label>Fecha
-                        <input type="date" name="fecha" value="<?= $hoy ?>" required>
-                    </label>
-                    <label>Horario
-                        <input type="time" name="horario" required>
-                    </label>
-                    <label>Espacio
-                        <select name="espacio" required>
-                            <option value="Aula 1">Aula 1</option>
-                            <option value="Aula 2">Aula 2</option>
-                            <option value="Laboratorio">Laboratorio</option>
-                            <option value="Gimnasio">Gimnasio</option>
-                            <option value="Biblioteca">Biblioteca</option>
-                        </select>
-                    </label>
-                    <label>Duración (minutos)
-                        <input type="number" name="duracion" min="10" max="480" step="5" value="30" required>
-                    </label>
-                </div>
+            <div class="grid">
+                <label>Nombre
+                    <input type="text" name="nombre" required>
+                </label>
+                <label>Apellido
+                    <input type="text" name="apellido" required>
+                </label>
+                <label>DNI
+                    <input type="text" name="dni" placeholder="Sólo números" required>
+                </label>
+                <label>Cargo
+                    <select name="cargo" required>
+                        <option value="Alumno">Alumno</option>
+                        <option value="Profesor">Profesor</option>
+                        <option value="Directivo">Directivo</option>
+                        <option value="Personal">Personal</option>
+                    </select>
+                </label>
+                <label>Fecha
+                    <input type="date" name="fecha" value="<?= $hoy ?>" required>
+                </label>
+                <label>Horario
+                    <input type="time" name="horario" required>
+                </label>
+                <label>Espacio
+                    <select name="espacio" required>
+                        <option value="Aula 1">Aula 1</option>
+                        <option value="Aula 2">Aula 2</option>
+                        <option value="Laboratorio">Laboratorio</option>
+                        <option value="Gimnasio">Gimnasio</option>
+                        <option value="Biblioteca">Biblioteca</option>
+                    </select>
+                </label>
+                <label>Duración (minutos)
+                    <input type="number" name="duracion" min="10" max="480" step="5" value="30" required>
+                </label>
+            </div>
 
-                <button type="submit" class="btn primario"><i class="fa-solid fa-check"></i> Crear</button>
-            </form>
-        </section>
-    <?php endif; ?>
+            <button type="submit" class="btn primario"><i class="fa-solid fa-check"></i> Crear</button>
+        </form>
+    </section>
 </main>
 
 <footer>

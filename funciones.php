@@ -22,6 +22,15 @@
  */
 require_once __DIR__ . '/db.php';
 
+// Helper explícito para obtener la conexión PDO
+function getDB(): PDO {
+    global $db;
+    if (!$db instanceof PDO) {
+        throw new RuntimeException('Conexión a base de datos no inicializada ($db).');
+    }
+    return $db;
+}
+
 // Helpers de autenticación
 /** Devuelve `true` si la sesión actual tiene rol administrador. */
 function isAdmin(): bool {
